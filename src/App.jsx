@@ -1,83 +1,112 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 const THEMES = {
-  parchment: {
-    name: 'Parchment',
-    bg: '#f5f0e6',
-    surface: '#fffef9',
-    surfaceAlt: '#e8e0d0',
-    text: '#2c2416',
-    textMuted: '#6b5d4d',
-    accent: '#8b4513',
-    accentLight: '#d4a574',
-    border: '#d4c9b8',
-    danger: '#a33',
-    success: '#2d5a27',
+  void: {
+    name: 'Void',
+    bg: '#0a0a0f',
+    surface: '#0e0e1a',
+    surfaceAlt: '#161620',
+    text: '#e2e8f0',
+    textMuted: '#666',
+    accent: '#a78bfa',
+    accentDim: '#4c1d95',
+    border: '#1e1e2e',
+    borderSubtle: '#111',
+    danger: '#ef4444',
+    success: '#22c55e',
+    isLight: false,
+    fontDisplay: "'Orbitron', sans-serif",
+    fontBody: "'Share Tech Mono', monospace",
   },
-  midnight: {
-    name: 'Midnight',
-    bg: '#0d1117',
-    surface: '#161b22',
-    surfaceAlt: '#21262d',
-    text: '#e6edf3',
-    textMuted: '#8b949e',
-    accent: '#58a6ff',
-    accentLight: '#1f6feb',
-    border: '#30363d',
-    danger: '#f85149',
-    success: '#3fb950',
+  ember: {
+    name: 'Ember',
+    bg: '#0f0a08',
+    surface: '#1a100a',
+    surfaceAlt: '#180e08',
+    text: '#fde8d0',
+    textMuted: '#6a4030',
+    accent: '#fb923c',
+    accentDim: '#7c2d12',
+    border: '#2e1a0e',
+    borderSubtle: '#1a0e08',
+    danger: '#ef4444',
+    success: '#22c55e',
+    isLight: false,
+    fontDisplay: "'Bebas Neue', sans-serif",
+    fontBody: "'DM Mono', monospace",
   },
-  forest: {
-    name: 'Forest',
-    bg: '#1a2118',
-    surface: '#242e22',
-    surfaceAlt: '#2e3a2b',
-    text: '#d8e4d6',
-    textMuted: '#8fa38a',
-    accent: '#7cb668',
-    accentLight: '#4a7c3f',
-    border: '#3d4d39',
-    danger: '#e57373',
-    success: '#81c784',
+  arctic: {
+    name: 'Arctic',
+    bg: '#08100f',
+    surface: '#0d1a18',
+    surfaceAlt: '#0a1614',
+    text: '#d0f0ec',
+    textMuted: '#305050',
+    accent: '#2dd4bf',
+    accentDim: '#0d4a42',
+    border: '#1a2e2a',
+    borderSubtle: '#111f1d',
+    danger: '#ef4444',
+    success: '#22c55e',
+    isLight: false,
+    fontDisplay: "'Exo 2', sans-serif",
+    fontBody: "'Fira Code', monospace",
   },
-  sepia: {
-    name: 'Sepia',
-    bg: '#2b2015',
-    surface: '#3d2e1f',
-    surfaceAlt: '#4a3928',
-    text: '#e8dcc8',
-    textMuted: '#b8a88e',
-    accent: '#d4a56a',
-    accentLight: '#a67c4a',
-    border: '#5a4633',
-    danger: '#e07a5f',
-    success: '#81b29a',
+  steel: {
+    name: 'Steel',
+    bg: '#0a0c10',
+    surface: '#10141c',
+    surfaceAlt: '#0d1018',
+    text: '#dce8f8',
+    textMuted: '#3a5070',
+    accent: '#60a5fa',
+    accentDim: '#1e3a6e',
+    border: '#1e2430',
+    borderSubtle: '#141820',
+    danger: '#ef4444',
+    success: '#22c55e',
+    isLight: false,
+    fontDisplay: "'Rajdhani', sans-serif",
+    fontBody: "'JetBrains Mono', monospace",
   },
-  lavender: {
-    name: 'Lavender',
-    bg: '#f8f6fc',
-    surface: '#ffffff',
-    surfaceAlt: '#ede8f5',
-    text: '#2d2640',
-    textMuted: '#6b6280',
-    accent: '#7c5cbf',
-    accentLight: '#a896d4',
-    border: '#d8d0e8',
-    danger: '#c44569',
-    success: '#27ae60',
+  rose: {
+    name: 'Rose',
+    bg: '#100a0d',
+    surface: '#1a0d12',
+    surfaceAlt: '#160a0f',
+    text: '#f8d8e8',
+    textMuted: '#5a2a3a',
+    accent: '#f472b6',
+    accentDim: '#6d1a3a',
+    border: '#2e1220',
+    borderSubtle: '#1a0d14',
+    danger: '#ef4444',
+    success: '#22c55e',
+    isLight: false,
+    fontDisplay: "'Playfair Display', serif",
+    fontBody: "'Courier Prime', monospace",
   },
-};
-
-const FONTS = {
-  parchment: { heading: "'Playfair Display', Georgia, serif", body: "'Crimson Text', Georgia, serif" },
-  midnight: { heading: "'Space Grotesk', system-ui, sans-serif", body: "'IBM Plex Sans', system-ui, sans-serif" },
-  forest: { heading: "'Bitter', Georgia, serif", body: "'Source Sans 3', system-ui, sans-serif" },
-  sepia: { heading: "'Libre Baskerville', Georgia, serif", body: "'Lora', Georgia, serif" },
-  lavender: { heading: "'DM Serif Display', Georgia, serif", body: "'Nunito', system-ui, sans-serif" },
+  light: {
+    name: 'Light',
+    bg: '#f4f1ec',
+    surface: '#fffefa',
+    surfaceAlt: '#edeae4',
+    text: '#1a1714',
+    textMuted: '#6b6560',
+    accent: '#1a1a2e',
+    accentDim: '#2d2d4a',
+    border: '#d4cfc7',
+    borderSubtle: '#e8e4dd',
+    danger: '#ef4444',
+    success: '#22c55e',
+    isLight: true,
+    fontDisplay: "'Bebas Neue', sans-serif",
+    fontBody: "'DM Mono', monospace",
+  },
 };
 
 export default function ReadingLog() {
-  const [theme, setTheme] = useState('parchment');
+  const [theme, setTheme] = useState('void');
   const [books, setBooks] = useState([]);
   const [currentBook, setCurrentBook] = useState(null);
   const [tab, setTab] = useState('current'); // current, history, settings
@@ -87,14 +116,13 @@ export default function ReadingLog() {
   const fileInputRef = useRef(null);
 
   const t = THEMES[theme];
-  const fonts = FONTS[theme];
 
   useEffect(() => {
     const saved = localStorage.getItem('readingLog');
     if (saved) {
       const data = JSON.parse(saved);
       setBooks(data.books || []);
-      setTheme(data.theme || 'parchment');
+      setTheme(data.theme || 'void');
     }
   }, []);
 
@@ -184,7 +212,7 @@ export default function ReadingLog() {
       minHeight: '100vh',
       background: t.bg,
       color: t.text,
-      fontFamily: fonts.body,
+      fontFamily: t.fontBody,
       maxWidth: '480px',
       margin: '0 auto',
       position: 'relative',
@@ -199,13 +227,15 @@ export default function ReadingLog() {
       zIndex: 100,
     },
     title: {
-      fontFamily: fonts.heading,
-      fontSize: '1.75rem',
+      fontFamily: t.fontDisplay,
+      fontSize: '1.5rem',
       fontWeight: 700,
       margin: 0,
       display: 'flex',
       alignItems: 'center',
       gap: '10px',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
     },
     nav: {
       display: 'flex',
@@ -225,15 +255,17 @@ export default function ReadingLog() {
       background: 'none',
       border: 'none',
       color: active ? t.accent : t.textMuted,
-      fontFamily: fonts.body,
-      fontSize: '0.75rem',
-      fontWeight: active ? 600 : 400,
+      fontFamily: t.fontBody,
+      fontSize: '0.7rem',
+      fontWeight: 500,
       cursor: 'pointer',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       gap: '4px',
       transition: 'color 0.2s',
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
     }),
     content: {
       padding: '16px',
@@ -241,7 +273,7 @@ export default function ReadingLog() {
     card: {
       background: t.surface,
       border: `1px solid ${t.border}`,
-      borderRadius: '12px',
+      borderRadius: '8px',
       padding: '16px',
       marginBottom: '12px',
     },
@@ -254,7 +286,7 @@ export default function ReadingLog() {
     bookCover: {
       width: '70px',
       height: '100px',
-      borderRadius: '6px',
+      borderRadius: '4px',
       objectFit: 'cover',
       background: t.surfaceAlt,
       border: `1px solid ${t.border}`,
@@ -265,71 +297,80 @@ export default function ReadingLog() {
       minWidth: 0,
     },
     bookTitle: {
-      fontFamily: fonts.heading,
+      fontFamily: t.fontDisplay,
       fontSize: '1.1rem',
       fontWeight: 600,
       margin: '0 0 4px 0',
       lineHeight: 1.3,
+      letterSpacing: '0.04em',
     },
     bookAuthor: {
       color: t.textMuted,
-      fontSize: '0.9rem',
+      fontSize: '0.85rem',
       margin: '0 0 8px 0',
     },
     badge: {
       display: 'inline-block',
       padding: '3px 10px',
-      borderRadius: '20px',
-      fontSize: '0.75rem',
+      borderRadius: '4px',
+      fontSize: '0.7rem',
       fontWeight: 500,
-      background: t.accentLight,
-      color: t.surface,
+      background: t.accentDim,
+      color: t.accent,
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
     },
     btn: (variant = 'primary') => ({
-      padding: '12px 20px',
-      borderRadius: '8px',
+      padding: '11px 18px',
+      borderRadius: '6px',
       border: 'none',
-      fontFamily: fonts.body,
-      fontSize: '0.95rem',
+      fontFamily: t.fontBody,
+      fontSize: '0.85rem',
       fontWeight: 500,
       cursor: 'pointer',
       transition: 'all 0.2s',
-      ...(variant === 'primary' && { background: t.accent, color: '#fff' }),
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      ...(variant === 'primary' && { background: t.accent, color: t.isLight ? '#fff' : t.bg }),
       ...(variant === 'secondary' && { background: t.surfaceAlt, color: t.text, border: `1px solid ${t.border}` }),
-      ...(variant === 'danger' && { background: t.danger, color: '#fff' }),
+      ...(variant === 'danger' && { background: 'transparent', color: t.danger, border: `1px solid ${t.danger}` }),
     }),
     input: {
       width: '100%',
-      padding: '12px 14px',
-      borderRadius: '8px',
+      padding: '10px 12px',
+      borderRadius: '6px',
       border: `1px solid ${t.border}`,
       background: t.surfaceAlt,
       color: t.text,
-      fontFamily: fonts.body,
-      fontSize: '1rem',
+      fontFamily: t.fontBody,
+      fontSize: '0.95rem',
       outline: 'none',
       boxSizing: 'border-box',
+      colorScheme: t.isLight ? 'light' : 'dark',
     },
     textarea: {
       width: '100%',
-      padding: '12px 14px',
-      borderRadius: '8px',
+      padding: '10px 12px',
+      borderRadius: '6px',
       border: `1px solid ${t.border}`,
       background: t.surfaceAlt,
       color: t.text,
-      fontFamily: fonts.body,
-      fontSize: '1rem',
+      fontFamily: t.fontBody,
+      fontSize: '0.95rem',
       outline: 'none',
       resize: 'vertical',
       minHeight: '100px',
       boxSizing: 'border-box',
+      colorScheme: t.isLight ? 'light' : 'dark',
     },
     label: {
       display: 'block',
       marginBottom: '6px',
       fontWeight: 500,
       color: t.textMuted,
-      fontSize: '0.9rem',
+      fontSize: '0.75rem',
+      letterSpacing: '0.12em',
+      textTransform: 'uppercase',
     },
     formGroup: {
       marginBottom: '16px',
@@ -337,7 +378,7 @@ export default function ReadingLog() {
     modal: {
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0,0,0,0.6)',
+      background: 'rgba(0,0,0,0.7)',
       display: 'flex',
       alignItems: 'flex-end',
       justifyContent: 'center',
@@ -345,49 +386,55 @@ export default function ReadingLog() {
     },
     modalContent: {
       background: t.surface,
-      borderRadius: '20px 20px 0 0',
+      borderRadius: '10px 10px 0 0',
       padding: '24px 20px',
       width: '100%',
       maxWidth: '480px',
       maxHeight: '85vh',
       overflowY: 'auto',
+      border: `1px solid ${t.border}`,
+      borderBottom: 'none',
     },
     modalTitle: {
-      fontFamily: fonts.heading,
-      fontSize: '1.4rem',
+      fontFamily: t.fontDisplay,
+      fontSize: '1.3rem',
       fontWeight: 600,
       margin: '0 0 20px 0',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
     },
     entry: {
       background: t.surfaceAlt,
-      borderRadius: '10px',
+      borderRadius: '6px',
       padding: '14px',
       marginBottom: '10px',
+      border: `1px solid ${t.borderSubtle}`,
     },
     entryDate: {
-      fontSize: '0.8rem',
+      fontSize: '0.75rem',
       color: t.textMuted,
       marginBottom: '8px',
+      letterSpacing: '0.08em',
     },
     entryText: {
-      fontSize: '0.95rem',
+      fontSize: '0.9rem',
       lineHeight: 1.6,
       marginBottom: '10px',
     },
     character: {
       background: t.surface,
       border: `1px solid ${t.border}`,
-      borderRadius: '6px',
+      borderRadius: '4px',
       padding: '8px 10px',
       marginTop: '6px',
     },
     characterName: {
       fontWeight: 600,
-      fontSize: '0.9rem',
+      fontSize: '0.85rem',
       color: t.accent,
     },
     characterDesc: {
-      fontSize: '0.85rem',
+      fontSize: '0.8rem',
       color: t.textMuted,
       marginTop: '2px',
     },
@@ -395,15 +442,15 @@ export default function ReadingLog() {
       position: 'fixed',
       bottom: '90px',
       right: 'calc(50% - 220px)',
-      width: '56px',
-      height: '56px',
-      borderRadius: '50%',
+      width: '52px',
+      height: '52px',
+      borderRadius: '8px',
       background: t.accent,
-      color: '#fff',
+      color: t.isLight ? '#fff' : t.bg,
       border: 'none',
-      fontSize: '1.8rem',
+      fontSize: '1.6rem',
       cursor: 'pointer',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+      boxShadow: `0 4px 16px ${t.accent}44`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -412,26 +459,29 @@ export default function ReadingLog() {
       background: 'none',
       border: 'none',
       color: t.accent,
-      fontSize: '1rem',
+      fontSize: '0.85rem',
       cursor: 'pointer',
       padding: '0',
-      fontFamily: fonts.body,
+      fontFamily: t.fontBody,
       display: 'flex',
       alignItems: 'center',
       gap: '4px',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
     },
     themeBtn: (active) => ({
       width: '36px',
       height: '36px',
-      borderRadius: '50%',
-      border: active ? `3px solid ${t.accent}` : `2px solid ${t.border}`,
+      borderRadius: '6px',
+      border: active ? `3px solid ${t.text}` : `2px solid ${t.border}`,
       cursor: 'pointer',
       transition: 'all 0.2s',
     }),
     emptyState: {
       textAlign: 'center',
-      padding: '40px 20px',
+      padding: '60px 20px',
       color: t.textMuted,
+      letterSpacing: '0.1em',
     },
   };
 
@@ -889,13 +939,13 @@ export default function ReadingLog() {
               </div>
             )}
             <div style={styles.bookInfo}>
-              <h2 style={{ ...styles.bookTitle, fontSize: '1.3rem' }}>{book.title}</h2>
+              <h2 style={{ ...styles.bookTitle, fontSize: '1.2rem' }}>{book.title}</h2>
               {book.author && <p style={styles.bookAuthor}>by {book.author}</p>}
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                <span style={{ ...styles.badge, background: book.status === 'reading' ? t.accent : t.success }}>
-                  {book.status === 'reading' ? 'Currently Reading' : 'Finished'}
+                <span style={{ ...styles.badge, background: book.status === 'reading' ? t.accentDim : `${t.success}22`, color: book.status === 'reading' ? t.accent : t.success }}>
+                  {book.status === 'reading' ? 'Reading' : 'Finished'}
                 </span>
-                <span style={{ ...styles.badge, background: t.surfaceAlt, color: t.textMuted }}>
+                <span style={{ ...styles.badge, background: t.surfaceAlt, color: t.textMuted, border: `1px solid ${t.borderSubtle}` }}>
                   {book.entries.length} entries
                 </span>
               </div>
@@ -916,7 +966,7 @@ export default function ReadingLog() {
 
         {uniqueCharacters.length > 0 && (
           <div style={styles.card}>
-            <h3 style={{ fontFamily: fonts.heading, fontSize: '1.1rem', margin: '0 0 12px 0' }}>
+            <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 12px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>
               Characters ({uniqueCharacters.length})
             </h3>
             {uniqueCharacters.map((char, idx) => (
@@ -928,7 +978,7 @@ export default function ReadingLog() {
           </div>
         )}
 
-        <h3 style={{ fontFamily: fonts.heading, fontSize: '1.1rem', margin: '20px 0 12px 0' }}>
+        <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '20px 0 12px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>
           Reading Log
         </h3>
 
@@ -979,9 +1029,9 @@ export default function ReadingLog() {
     <div>
       {currentBooks.length === 0 ? (
         <div style={styles.emptyState}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📚</div>
-          <p>No books currently being read.</p>
-          <p style={{ fontSize: '0.9rem' }}>Tap the + button to add your first book!</p>
+          <div style={{ fontSize: '2.5rem', marginBottom: '16px', opacity: 0.5 }}>📚</div>
+          <p style={{ fontSize: '0.85rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>No books currently being read</p>
+          <p style={{ fontSize: '0.75rem', marginTop: '8px', opacity: 0.7 }}>Tap + to add your first book</p>
         </div>
       ) : (
         currentBooks.map(book => (
@@ -997,9 +1047,9 @@ export default function ReadingLog() {
               <div style={styles.bookInfo}>
                 <h3 style={styles.bookTitle}>{book.title}</h3>
                 {book.author && <p style={styles.bookAuthor}>by {book.author}</p>}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <span style={styles.badge}>{book.entries.length} entries</span>
-                  <span style={{ fontSize: '0.8rem', color: t.textMuted }}>
+                  <span style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.06em' }}>
                     Started {formatDate(book.startDate)}
                   </span>
                 </div>
@@ -1043,13 +1093,13 @@ export default function ReadingLog() {
         )}
       </div>
 
-      <h3 style={{ fontFamily: fonts.heading, fontSize: '1rem', margin: '16px 0 12px 0', color: t.textMuted }}>
+      <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.8rem', margin: '16px 0 12px 0', color: t.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
         {finishedBooks.length} book{finishedBooks.length !== 1 ? 's' : ''} finished
       </h3>
 
       {finishedBooks.length === 0 ? (
         <div style={styles.emptyState}>
-          <p>No finished books in this date range.</p>
+          <p style={{ fontSize: '0.85rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>No finished books in this range</p>
         </div>
       ) : (
         finishedBooks.map(book => (
@@ -1065,9 +1115,9 @@ export default function ReadingLog() {
               <div style={styles.bookInfo}>
                 <h3 style={styles.bookTitle}>{book.title}</h3>
                 {book.author && <p style={styles.bookAuthor}>by {book.author}</p>}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ ...styles.badge, background: t.success }}>Finished</span>
-                  <span style={{ fontSize: '0.8rem', color: t.textMuted }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ ...styles.badge, background: `${t.success}22`, color: t.success }}>Finished</span>
+                  <span style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.06em' }}>
                     {formatDate(book.finishDate)}
                   </span>
                 </div>
@@ -1083,7 +1133,7 @@ export default function ReadingLog() {
   const SettingsTab = () => (
     <div>
       <div style={styles.card}>
-        <h3 style={{ fontFamily: fonts.heading, fontSize: '1.1rem', margin: '0 0 16px 0' }}>Theme</h3>
+        <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 16px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>Theme</h3>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           {Object.entries(THEMES).map(([key, value]) => (
             <button
@@ -1094,31 +1144,31 @@ export default function ReadingLog() {
             />
           ))}
         </div>
-        <p style={{ marginTop: '12px', color: t.textMuted, fontSize: '0.9rem' }}>
+        <p style={{ marginTop: '12px', color: t.textMuted, fontSize: '0.8rem', letterSpacing: '0.08em' }}>
           Current: {THEMES[theme].name}
         </p>
       </div>
 
       <div style={styles.card}>
-        <h3 style={{ fontFamily: fonts.heading, fontSize: '1.1rem', margin: '0 0 8px 0' }}>Statistics</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
-          <div style={{ textAlign: 'center', padding: '16px', background: t.surfaceAlt, borderRadius: '8px' }}>
-            <div style={{ fontSize: '2rem', fontWeight: 700, color: t.accent }}>{currentBooks.length}</div>
-            <div style={{ fontSize: '0.85rem', color: t.textMuted }}>Reading</div>
+        <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 16px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>Statistics</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div style={{ textAlign: 'center', padding: '16px', background: t.surfaceAlt, borderRadius: '6px', border: `1px solid ${t.borderSubtle}` }}>
+            <div style={{ fontFamily: t.fontDisplay, fontSize: '2rem', fontWeight: 700, color: t.accent }}>{currentBooks.length}</div>
+            <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Reading</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '16px', background: t.surfaceAlt, borderRadius: '8px' }}>
-            <div style={{ fontSize: '2rem', fontWeight: 700, color: t.success }}>{books.filter(b => b.status === 'finished').length}</div>
-            <div style={{ fontSize: '0.85rem', color: t.textMuted }}>Finished</div>
+          <div style={{ textAlign: 'center', padding: '16px', background: t.surfaceAlt, borderRadius: '6px', border: `1px solid ${t.borderSubtle}` }}>
+            <div style={{ fontFamily: t.fontDisplay, fontSize: '2rem', fontWeight: 700, color: t.success }}>{books.filter(b => b.status === 'finished').length}</div>
+            <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Finished</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '16px', background: t.surfaceAlt, borderRadius: '8px', gridColumn: 'span 2' }}>
-            <div style={{ fontSize: '2rem', fontWeight: 700, color: t.accentLight }}>{books.reduce((sum, b) => sum + b.entries.length, 0)}</div>
-            <div style={{ fontSize: '0.85rem', color: t.textMuted }}>Total Entries</div>
+          <div style={{ textAlign: 'center', padding: '16px', background: t.surfaceAlt, borderRadius: '6px', border: `1px solid ${t.borderSubtle}`, gridColumn: 'span 2' }}>
+            <div style={{ fontFamily: t.fontDisplay, fontSize: '2rem', fontWeight: 700, color: t.accent }}>{books.reduce((sum, b) => sum + b.entries.length, 0)}</div>
+            <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Total Entries</div>
           </div>
         </div>
       </div>
 
       <div style={styles.card}>
-        <h3 style={{ fontFamily: fonts.heading, fontSize: '1.1rem', margin: '0 0 12px 0' }}>About</h3>
+        <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 12px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>About</h3>
         <p style={{ color: t.textMuted, fontSize: '0.9rem', lineHeight: 1.6 }}>
           Reading Log helps you track your reading journey. Log events, characters, and thoughts as you progress through each book.
         </p>
@@ -1131,7 +1181,7 @@ export default function ReadingLog() {
 
   return (
     <div style={styles.container}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Crimson+Text:wght@400;600&family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&family=Bitter:wght@500;600&family=Source+Sans+3:wght@400;500&family=Libre+Baskerville:wght@400;700&family=Lora:wght@400;500&family=DM+Serif+Display&family=Nunito:wght@400;500;600&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Exo+2:wght@500;600&family=Fira+Code:wght@400;500&family=Rajdhani:wght@500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet" />
 
       <header style={styles.header}>
         <h1 style={styles.title}>
