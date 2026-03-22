@@ -106,7 +106,7 @@ const THEMES = {
 };
 
 export default function ReadingLog() {
-  const [theme, setTheme] = useState('void');
+  const [theme, setTheme] = useState('light');
   const [books, setBooks] = useState([]);
   const [currentBook, setCurrentBook] = useState(null);
   const [tab, setTab] = useState('current'); // current, history, settings
@@ -114,6 +114,8 @@ export default function ReadingLog() {
   const [showAddEntry, setShowAddEntry] = useState(false);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const fileInputRef = useRef(null);
+  const backupInputRef = useRef(null);
+  const [restoreMsg, setRestoreMsg] = useState(null);
 
   const t = THEMES[theme];
 
@@ -122,7 +124,7 @@ export default function ReadingLog() {
     if (saved) {
       const data = JSON.parse(saved);
       setBooks(data.books || []);
-      setTheme(data.theme || 'void');
+      setTheme(data.theme || 'light');
     }
   }, []);
 
@@ -191,6 +193,64 @@ export default function ReadingLog() {
     if (currentBook?.id === bookId) {
       setCurrentBook({ ...currentBook, entries: currentBook.entries.filter(e => e.id !== entryId) });
     }
+  };
+
+  const saveBackup = () => {
+    const data = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      theme,
+      books,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reading-log-backup-${new Date().toISOString().split('T')[0]}.rlbak`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const restoreBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        
+        if (!data.books || !Array.isArray(data.books)) {
+          setRestoreMsg({ type: 'error', text: 'Invalid backup file format' });
+          return;
+        }
+        
+        // Merge books - avoid duplicates by ID
+        const existingIds = new Set(books.map(b => b.id));
+        const newBooks = data.books.filter(b => !existingIds.has(b.id));
+        const mergedBooks = [...books, ...newBooks];
+        
+        setBooks(mergedBooks);
+        if (data.theme && THEMES[data.theme]) {
+          setTheme(data.theme);
+        }
+        
+        setRestoreMsg({ 
+          type: 'success', 
+          text: newBooks.length > 0 
+            ? `Restored ${newBooks.length} book${newBooks.length !== 1 ? 's' : ''}` 
+            : 'No new books to restore (all already exist)'
+        });
+        
+        setTimeout(() => setRestoreMsg(null), 4000);
+      } catch (err) {
+        setRestoreMsg({ type: 'error', text: 'Failed to parse backup file' });
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   const currentBooks = books.filter(b => b.status === 'reading');
@@ -536,33 +596,45 @@ export default function ReadingLog() {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState(false);
     const [showManual, setShowManual] = useState(false);
     const searchTimeout = useRef(null);
 
     const searchBooks = async (query) => {
       if (!query.trim() || query.length < 2) {
         setSearchResults([]);
+        setSearchError(false);
         return;
       }
       
       setIsSearching(true);
+      setSearchError(false);
       try {
+        // Using Open Library API - free and no API key required
         const response = await fetch(
-          `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=6&printType=books`
+          `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=8&fields=key,title,author_name,first_publish_year,number_of_pages_median,cover_i,edition_key`
         );
+        
+        if (!response.ok) {
+          throw new Error('Search failed');
+        }
+        
         const data = await response.json();
         
-        if (data.items) {
-          const books = data.items.map(item => ({
-            id: item.id,
-            title: item.volumeInfo.title || 'Unknown Title',
-            author: item.volumeInfo.authors?.join(', ') || 'Unknown Author',
-            cover: item.volumeInfo.imageLinks?.thumbnail?.replace('http:', 'https:') || 
-                   item.volumeInfo.imageLinks?.smallThumbnail?.replace('http:', 'https:') || '',
-            description: item.volumeInfo.description || '',
-            publishedDate: item.volumeInfo.publishedDate || '',
-            pageCount: item.volumeInfo.pageCount || null,
-          }));
+        if (data.docs && data.docs.length > 0) {
+          const books = data.docs
+            .filter(doc => doc.title) // Only include results with titles
+            .slice(0, 6)
+            .map(doc => ({
+              id: doc.key || doc.edition_key?.[0] || Math.random().toString(36).slice(2),
+              title: doc.title,
+              author: doc.author_name?.join(', ') || 'Unknown Author',
+              cover: doc.cover_i 
+                ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
+                : '',
+              publishedDate: doc.first_publish_year ? String(doc.first_publish_year) : '',
+              pageCount: doc.number_of_pages_median || null,
+            }));
           setSearchResults(books);
         } else {
           setSearchResults([]);
@@ -570,6 +642,7 @@ export default function ReadingLog() {
       } catch (error) {
         console.error('Search failed:', error);
         setSearchResults([]);
+        setSearchError(true);
       }
       setIsSearching(false);
     };
@@ -577,10 +650,11 @@ export default function ReadingLog() {
     const handleSearchChange = (e) => {
       const query = e.target.value;
       setSearchQuery(query);
+      setSearchError(false);
       
       // Debounce search
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
-      searchTimeout.current = setTimeout(() => searchBooks(query), 400);
+      searchTimeout.current = setTimeout(() => searchBooks(query), 500);
     };
 
     const selectBook = (book) => {
@@ -612,6 +686,7 @@ export default function ReadingLog() {
       setCover('');
       setSearchQuery('');
       setSearchResults([]);
+      setSearchError(false);
       setShowManual(false);
     };
 
@@ -719,9 +794,15 @@ export default function ReadingLog() {
                 </div>
               )}
 
-              {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '20px', color: t.textMuted }}>
+              {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && !searchError && (
+                <div style={{ textAlign: 'center', padding: '20px', color: t.textMuted, fontSize: '0.85rem' }}>
                   No books found. Try a different search or add manually.
+                </div>
+              )}
+
+              {!isSearching && searchError && (
+                <div style={{ textAlign: 'center', padding: '20px', color: t.danger, fontSize: '0.85rem' }}>
+                  Search failed. Check your connection or add manually.
                 </div>
               )}
 
@@ -1165,6 +1246,69 @@ export default function ReadingLog() {
             <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Total Entries</div>
           </div>
         </div>
+      </div>
+
+      <div style={styles.card}>
+        <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 16px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>Backup & Restore</h3>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: restoreMsg ? '12px' : '0' }}>
+          <button
+            onClick={saveBackup}
+            style={{ 
+              flex: 1, 
+              padding: '11px', 
+              borderRadius: '6px', 
+              cursor: 'pointer', 
+              fontFamily: t.fontBody,
+              background: t.accent, 
+              border: 'none', 
+              color: t.isLight ? '#fff' : t.bg, 
+              fontSize: '0.8rem', 
+              letterSpacing: '0.08em', 
+              textTransform: 'uppercase',
+              fontWeight: 500,
+            }}
+          >
+            ↓ Save Backup
+          </button>
+          <button
+            onClick={() => backupInputRef.current?.click()}
+            style={{ 
+              flex: 1, 
+              padding: '11px', 
+              borderRadius: '6px', 
+              cursor: 'pointer', 
+              fontFamily: t.fontBody,
+              background: 'transparent', 
+              border: `1px solid ${t.border}`, 
+              color: t.accent, 
+              fontSize: '0.8rem', 
+              letterSpacing: '0.08em', 
+              textTransform: 'uppercase',
+            }}
+          >
+            ↑ Restore
+          </button>
+          <input 
+            ref={backupInputRef} 
+            type="file" 
+            accept=".rlbak,.json" 
+            onChange={restoreBackup} 
+            style={{ display: 'none' }} 
+          />
+        </div>
+        {restoreMsg && (
+          <div style={{ 
+            fontSize: '0.8rem', 
+            color: restoreMsg.type === 'error' ? t.danger : t.success, 
+            letterSpacing: '0.04em',
+            padding: '8px 0 0 0',
+          }}>
+            {restoreMsg.type === 'error' ? '⚠ ' : '✓ '}{restoreMsg.text}
+          </div>
+        )}
+        <p style={{ fontSize: '0.75rem', color: t.textMuted, marginTop: '12px', lineHeight: 1.5 }}>
+          Downloads an <span style={{ color: t.text }}>.rlbak</span> file. Restore merges with existing data — no duplicates.
+        </p>
       </div>
 
       <div style={styles.card}>
