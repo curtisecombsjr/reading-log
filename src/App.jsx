@@ -2221,20 +2221,165 @@ export default function ReadingLog() {
 
       <div style={styles.card}>
         <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 16px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>Statistics</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-          <div style={{ textAlign: 'center', padding: '16px', background: t.surfaceAlt, borderRadius: '6px', border: `1px solid ${t.borderSubtle}` }}>
-            <div style={{ fontFamily: t.fontDisplay, fontSize: '2rem', fontWeight: 700, color: t.accent }}>{currentBooks.length}</div>
-            <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Reading</div>
-          </div>
-          <div style={{ textAlign: 'center', padding: '16px', background: t.surfaceAlt, borderRadius: '6px', border: `1px solid ${t.borderSubtle}` }}>
-            <div style={{ fontFamily: t.fontDisplay, fontSize: '2rem', fontWeight: 700, color: t.success }}>{books.filter(b => b.status === 'finished').length}</div>
-            <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Finished</div>
-          </div>
-          <div style={{ textAlign: 'center', padding: '16px', background: t.surfaceAlt, borderRadius: '6px', border: `1px solid ${t.borderSubtle}`, gridColumn: 'span 2' }}>
-            <div style={{ fontFamily: t.fontDisplay, fontSize: '2rem', fontWeight: 700, color: t.accent }}>{books.reduce((sum, b) => sum + b.entries.length, 0)}</div>
-            <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Total Entries</div>
-          </div>
-        </div>
+        
+        {(() => {
+          const finished = books.filter(b => b.status === 'finished');
+          const now = new Date();
+          const thisYear = now.getFullYear();
+          const thisMonth = now.getMonth();
+          
+          const finishedThisYear = finished.filter(b => b.finishDate && new Date(b.finishDate).getFullYear() === thisYear);
+          const finishedThisMonth = finished.filter(b => {
+            if (!b.finishDate) return false;
+            const d = new Date(b.finishDate);
+            return d.getFullYear() === thisYear && d.getMonth() === thisMonth;
+          });
+          
+          const ratedBooks = books.filter(b => b.rating);
+          const avgRating = ratedBooks.length > 0 
+            ? (ratedBooks.reduce((sum, b) => sum + b.rating, 0) / ratedBooks.length).toFixed(1)
+            : '—';
+          
+          // Rating distribution
+          const ratingDist = [5, 4, 3, 2, 1].map(r => ({
+            rating: r,
+            count: books.filter(b => b.rating === r).length
+          }));
+          const maxRatingCount = Math.max(...ratingDist.map(r => r.count), 1);
+          
+          // Top tags
+          const tagCounts = {};
+          books.forEach(b => (b.tags || []).forEach(tag => {
+            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+          }));
+          const topTags = Object.entries(tagCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+          
+          // Books per month this year
+          const monthlyData = Array(12).fill(0);
+          finishedThisYear.forEach(b => {
+            if (b.finishDate) {
+              const month = new Date(b.finishDate).getMonth();
+              monthlyData[month]++;
+            }
+          });
+          const maxMonthly = Math.max(...monthlyData, 1);
+          const monthNames = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+          
+          const totalEntries = books.reduce((sum, b) => sum + b.entries.length, 0);
+          
+          return (
+            <>
+              {/* Primary Stats Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+                <div style={{ textAlign: 'center', padding: '12px 8px', background: t.surfaceAlt, borderRadius: '6px' }}>
+                  <div style={{ fontFamily: t.fontDisplay, fontSize: '1.6rem', fontWeight: 700, color: t.accent }}>{books.filter(b => b.status === 'reading').length}</div>
+                  <div style={{ fontSize: '0.65rem', color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Reading</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '12px 8px', background: t.surfaceAlt, borderRadius: '6px' }}>
+                  <div style={{ fontFamily: t.fontDisplay, fontSize: '1.6rem', fontWeight: 700, color: t.success }}>{finished.length}</div>
+                  <div style={{ fontSize: '0.65rem', color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Finished</div>
+                </div>
+                <div style={{ textAlign: 'center', padding: '12px 8px', background: t.surfaceAlt, borderRadius: '6px' }}>
+                  <div style={{ fontFamily: t.fontDisplay, fontSize: '1.6rem', fontWeight: 700, color: '#f59e0b' }}>{avgRating}</div>
+                  <div style={{ fontSize: '0.65rem', color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Avg Rating</div>
+                </div>
+              </div>
+
+              {/* This Year / This Month */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+                <div style={{ padding: '12px', background: t.surfaceAlt, borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: '0.65rem', color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>This Year</span>
+                    <span style={{ fontFamily: t.fontDisplay, fontSize: '1.3rem', fontWeight: 700, color: t.text }}>{finishedThisYear.length}</span>
+                  </div>
+                </div>
+                <div style={{ padding: '12px', background: t.surfaceAlt, borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontSize: '0.65rem', color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>This Month</span>
+                    <span style={{ fontFamily: t.fontDisplay, fontSize: '1.3rem', fontWeight: 700, color: t.text }}>{finishedThisMonth.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Books Per Month Chart */}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                  {thisYear} Reading Pace
+                </div>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', height: '60px' }}>
+                  {monthlyData.map((count, i) => (
+                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <div style={{
+                        width: '100%',
+                        height: `${Math.max((count / maxMonthly) * 48, count > 0 ? 6 : 2)}px`,
+                        background: i <= thisMonth ? (count > 0 ? t.accent : t.border) : t.borderSubtle,
+                        borderRadius: '2px',
+                        transition: 'height 0.3s',
+                      }} />
+                      <span style={{ fontSize: '0.55rem', color: i === thisMonth ? t.accent : t.textMuted }}>{monthNames[i]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Rating Distribution */}
+              {ratedBooks.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    Rating Distribution
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {ratingDist.map(({ rating, count }) => (
+                      <div key={rating} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#f59e0b', width: '45px' }}>{'★'.repeat(rating)}</span>
+                        <div style={{ flex: 1, height: '8px', background: t.surfaceAlt, borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${(count / maxRatingCount) * 100}%`,
+                            height: '100%',
+                            background: '#f59e0b',
+                            borderRadius: '4px',
+                            transition: 'width 0.3s',
+                          }} />
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: t.textMuted, width: '20px', textAlign: 'right' }}>{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Top Tags */}
+              {topTags.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.7rem', color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    Top Tags
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {topTags.map(([tag, count]) => (
+                      <span key={tag} style={{
+                        padding: '4px 10px',
+                        background: t.accentDim,
+                        color: t.accent,
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                      }}>
+                        #{tag} <span style={{ opacity: 0.7 }}>({count})</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Total Entries */}
+              <div style={{ textAlign: 'center', padding: '12px', background: t.surfaceAlt, borderRadius: '6px' }}>
+                <span style={{ fontSize: '0.65rem', color: t.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Total Log Entries: </span>
+                <span style={{ fontFamily: t.fontDisplay, fontSize: '1rem', fontWeight: 600, color: t.text }}>{totalEntries}</span>
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       <div style={styles.card}>
