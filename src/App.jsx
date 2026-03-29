@@ -114,6 +114,7 @@ export default function ReadingLog() {
   const [showAddBook, setShowAddBook] = useState(false);
   const [showAddEntry, setShowAddEntry] = useState(false);
   const [showAddChallenge, setShowAddChallenge] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [currentTagFilter, setCurrentTagFilter] = useState(null);
   const [historyTagFilter, setHistoryTagFilter] = useState(null);
@@ -1623,14 +1624,19 @@ export default function ReadingLog() {
             </div>
           ) : (
             <div style={{ marginTop: '16px' }}>
-              <button 
-                style={{ ...styles.btn('secondary'), width: '100%' }} 
+              <button
+                style={{ ...styles.btn('secondary'), width: '100%' }}
                 onClick={() => updateBook(book.id, { status: 'reading', finishDate: null })}
               >
                 ↩ Reopen for Editing
               </button>
             </div>
           )}
+          <div style={{ marginTop: '8px' }}>
+            <button style={{ ...styles.btn('secondary'), width: '100%' }} onClick={() => setShowQuiz(true)}>
+              Take Quiz
+            </button>
+          </div>
         </div>
 
         {uniqueCharacters.length > 0 && (
@@ -2037,6 +2043,310 @@ export default function ReadingLog() {
               Add Challenge
             </button>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Quiz Modal
+  const QuizModal = () => {
+    const book = currentBook;
+
+    const shuffle = (arr) => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+
+    const getCharsWithDesc = (b) =>
+      b.entries.flatMap(e => e.characters || [])
+        .filter(c => c.name && c.description)
+        .reduce((acc, char) => {
+          if (!acc.find(c => c.name.toLowerCase() === char.name.toLowerCase())) acc.push(char);
+          return acc;
+        }, []);
+
+    const generateQuestions = () => {
+      const qs = [];
+      const bookChars = getCharsWithDesc(book);
+      const otherChars = books
+        .filter(b => b.id !== book.id)
+        .flatMap(b => getCharsWithDesc(b));
+      const bookEvents = book.entries.flatMap(e => e.majorEvents || []).filter(Boolean);
+      const otherEvents = books
+        .filter(b => b.id !== book.id)
+        .flatMap(b => b.entries.flatMap(e => e.majorEvents || []).filter(Boolean));
+
+      // Flashcard: Who is [name]?
+      bookChars.forEach(char => {
+        qs.push({
+          type: 'flashcard',
+          prompt: `Who is ${char.name}?`,
+          answer: char.description,
+        });
+      });
+
+      // MCQ: Which character fits this description?
+      bookChars.forEach(char => {
+        const pool = [
+          ...bookChars.filter(c => c.name !== char.name).map(c => c.name),
+          ...otherChars.map(c => c.name),
+        ];
+        const distractors = shuffle(pool).slice(0, 3);
+        if (distractors.length === 3) {
+          qs.push({
+            type: 'mcq',
+            prompt: `Which character is described as:\n"${char.description}"`,
+            options: shuffle([char.name, ...distractors]),
+            answer: char.name,
+          });
+        }
+      });
+
+      // True/False: Did this happen in [book]?
+      if (bookEvents.length > 0) {
+        shuffle(bookEvents).slice(0, 3).forEach(event => {
+          qs.push({
+            type: 'truefalse',
+            prompt: `Did this happen in "${book.title}"?\n\n"${event}"`,
+            options: ['True', 'False'],
+            answer: 'True',
+          });
+        });
+        shuffle(otherEvents).slice(0, 3).forEach(event => {
+          qs.push({
+            type: 'truefalse',
+            prompt: `Did this happen in "${book.title}"?\n\n"${event}"`,
+            options: ['True', 'False'],
+            answer: 'False',
+          });
+        });
+      }
+
+      // MCQ: Which of these was a major event in [book]?
+      if (bookEvents.length > 0 && otherEvents.length >= 3) {
+        shuffle(bookEvents).slice(0, 3).forEach(event => {
+          const distractors = shuffle(otherEvents).slice(0, 3);
+          qs.push({
+            type: 'mcq',
+            prompt: `Which of these was a major event in "${book.title}"?`,
+            options: shuffle([event, ...distractors]),
+            answer: event,
+          });
+        });
+      }
+
+      return shuffle(qs).slice(0, 10);
+    };
+
+    const [questions] = useState(() => generateQuestions());
+    const [idx, setIdx] = useState(0);
+    const [score, setScore] = useState(0);
+    const [answered, setAnswered] = useState(false);
+    const [selectedAnswer, setSelectedAnswer] = useState(null);
+    const [revealed, setRevealed] = useState(false);
+    const [done, setDone] = useState(false);
+
+    const q = questions[idx];
+
+    const handleAnswer = (option) => {
+      if (answered) return;
+      setSelectedAnswer(option);
+      setAnswered(true);
+      if (option === q.answer) setScore(s => s + 1);
+    };
+
+    const handleSelfScore = (knew) => {
+      setAnswered(true);
+      if (knew) setScore(s => s + 1);
+    };
+
+    const handleNext = () => {
+      if (idx + 1 >= questions.length) {
+        setDone(true);
+      } else {
+        setIdx(i => i + 1);
+        setAnswered(false);
+        setSelectedAnswer(null);
+        setRevealed(false);
+      }
+    };
+
+    const optionStyle = (option) => {
+      const base = {
+        display: 'block',
+        width: '100%',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        border: `1px solid ${t.border}`,
+        background: t.surfaceAlt,
+        color: t.text,
+        fontFamily: t.fontBody,
+        fontSize: '0.9rem',
+        cursor: answered ? 'default' : 'pointer',
+        textAlign: 'left',
+        marginBottom: '8px',
+        transition: 'all 0.15s',
+        boxSizing: 'border-box',
+      };
+      if (!answered) return base;
+      if (option === q.answer) return { ...base, background: `${t.success}33`, border: `1px solid ${t.success}`, color: t.success };
+      if (option === selectedAnswer) return { ...base, background: `${t.danger}22`, border: `1px solid ${t.danger}`, color: t.danger };
+      return { ...base, opacity: 0.4 };
+    };
+
+    if (questions.length === 0) {
+      return (
+        <div style={styles.modal} onClick={() => setShowQuiz(false)}>
+          <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <h2 style={styles.modalTitle}>Quiz</h2>
+            <div style={{ textAlign: 'center', padding: '24px 0', color: t.textMuted }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '16px' }}>📝</div>
+              <p style={{ fontSize: '0.9rem' }}>Not enough data to generate questions.</p>
+              <p style={{ fontSize: '0.78rem', marginTop: '8px', lineHeight: 1.6 }}>
+                Add log entries with characters (include descriptions) or major events to enable the quiz.
+              </p>
+            </div>
+            <button style={{ ...styles.btn('primary'), width: '100%' }} onClick={() => setShowQuiz(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (done) {
+      const pct = Math.round((score / questions.length) * 100);
+      return (
+        <div style={styles.modal} onClick={() => setShowQuiz(false)}>
+          <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <h2 style={styles.modalTitle}>Quiz Complete</h2>
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ fontFamily: t.fontDisplay, fontSize: '3.5rem', fontWeight: 700, color: pct >= 70 ? t.success : pct >= 40 ? '#f59e0b' : t.danger }}>
+                {score}/{questions.length}
+              </div>
+              <div style={{ fontSize: '1.1rem', color: t.textMuted, marginTop: '6px' }}>{pct}%</div>
+              <div style={{ marginTop: '16px', fontSize: '0.9rem', color: t.text, lineHeight: 1.5 }}>
+                {pct === 100 ? 'Perfect score! Excellent memory.' : pct >= 70 ? 'Great job! You know this book well.' : pct >= 40 ? 'Not bad — keep reviewing your notes.' : 'Try again after re-reading your entries.'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '24px' }}>
+              <button style={{ ...styles.btn('secondary'), flex: 1 }} onClick={() => setShowQuiz(false)}>
+                Close
+              </button>
+              <button style={{ ...styles.btn('primary'), flex: 1 }} onClick={() => {
+                setIdx(0); setScore(0); setAnswered(false);
+                setSelectedAnswer(null); setRevealed(false); setDone(false);
+              }}>
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={styles.modal} onClick={() => setShowQuiz(false)}>
+        <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h2 style={{ ...styles.modalTitle, margin: 0 }}>Quiz</h2>
+            <span style={{ fontSize: '0.8rem', color: t.textMuted, letterSpacing: '0.06em' }}>
+              {idx + 1} / {questions.length}
+            </span>
+          </div>
+
+          <div style={{ height: '4px', background: t.border, borderRadius: '2px', marginBottom: '20px', overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${(idx / questions.length) * 100}%`,
+              background: t.accent,
+              borderRadius: '2px',
+              transition: 'width 0.3s',
+            }} />
+          </div>
+
+          <div style={{ fontSize: '0.65rem', color: t.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
+            {q.type === 'flashcard' ? 'Character Recall' : q.type === 'truefalse' ? 'True or False' : 'Multiple Choice'}
+          </div>
+
+          <div style={{ fontSize: '0.95rem', lineHeight: 1.65, marginBottom: '20px', color: t.text, whiteSpace: 'pre-wrap' }}>
+            {q.prompt}
+          </div>
+
+          {q.type === 'flashcard' && (
+            <>
+              <div style={{
+                padding: '14px 16px',
+                background: t.surfaceAlt,
+                borderRadius: '8px',
+                border: `1px solid ${t.border}`,
+                marginBottom: '14px',
+                minHeight: '54px',
+                display: 'flex',
+                alignItems: 'center',
+              }}>
+                {revealed ? (
+                  <span style={{ fontSize: '0.9rem', lineHeight: 1.6, color: t.text }}>{q.answer}</span>
+                ) : (
+                  <button style={{ ...styles.btn('secondary'), width: '100%' }} onClick={() => setRevealed(true)}>
+                    Reveal Answer
+                  </button>
+                )}
+              </div>
+              {revealed && !answered && (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button style={{ ...styles.btn('danger'), flex: 1 }} onClick={() => handleSelfScore(false)}>
+                    Didn't know
+                  </button>
+                  <button style={{ ...styles.btn('primary'), flex: 1 }} onClick={() => handleSelfScore(true)}>
+                    Knew it!
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {(q.type === 'mcq' || q.type === 'truefalse') && (
+            <div>
+              {q.options.map((option, i) => (
+                <button key={i} style={optionStyle(option)} onClick={() => handleAnswer(option)}>
+                  {answered && option === q.answer ? '✓ ' : ''}
+                  {answered && option === selectedAnswer && option !== q.answer ? '✗ ' : ''}
+                  {option}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {answered && (
+            <button style={{ ...styles.btn('primary'), width: '100%', marginTop: '12px' }} onClick={handleNext}>
+              {idx + 1 >= questions.length ? 'See Results' : 'Next →'}
+            </button>
+          )}
+
+          <button
+            style={{
+              display: 'block',
+              width: '100%',
+              textAlign: 'center',
+              background: 'none',
+              border: 'none',
+              color: t.textMuted,
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              marginTop: '14px',
+              padding: '4px',
+              fontFamily: t.fontBody,
+              letterSpacing: '0.06em',
+            }}
+            onClick={() => setShowQuiz(false)}
+          >
+            Quit Quiz
+          </button>
         </div>
       </div>
     );
@@ -2509,6 +2819,7 @@ export default function ReadingLog() {
       {showAddBook && <AddBookModal />}
       {showAddEntry && <AddEntryModal />}
       {showAddChallenge && <AddChallengeModal />}
+      {showQuiz && <QuizModal />}
     </div>
   );
 }
