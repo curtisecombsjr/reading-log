@@ -1,112 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const THEMES = {
-  void: {
-    name: 'Void',
-    bg: '#0a0a0f',
-    surface: '#0e0e1a',
-    surfaceAlt: '#161620',
-    text: '#e2e8f0',
-    textMuted: '#666',
-    accent: '#a78bfa',
-    accentDim: '#4c1d95',
-    border: '#1e1e2e',
-    borderSubtle: '#111',
-    danger: '#ef4444',
-    success: '#22c55e',
-    isLight: false,
-    fontDisplay: "'Orbitron', sans-serif",
-    fontBody: "'Share Tech Mono', monospace",
-  },
-  ember: {
-    name: 'Ember',
-    bg: '#0f0a08',
-    surface: '#1a100a',
-    surfaceAlt: '#180e08',
-    text: '#fde8d0',
-    textMuted: '#6a4030',
-    accent: '#fb923c',
-    accentDim: '#7c2d12',
-    border: '#2e1a0e',
-    borderSubtle: '#1a0e08',
-    danger: '#ef4444',
-    success: '#22c55e',
-    isLight: false,
-    fontDisplay: "'Bebas Neue', sans-serif",
-    fontBody: "'DM Mono', monospace",
-  },
-  arctic: {
-    name: 'Arctic',
-    bg: '#08100f',
-    surface: '#0d1a18',
-    surfaceAlt: '#0a1614',
-    text: '#d0f0ec',
-    textMuted: '#305050',
-    accent: '#2dd4bf',
-    accentDim: '#0d4a42',
-    border: '#1a2e2a',
-    borderSubtle: '#111f1d',
-    danger: '#ef4444',
-    success: '#22c55e',
-    isLight: false,
-    fontDisplay: "'Exo 2', sans-serif",
-    fontBody: "'Fira Code', monospace",
-  },
-  steel: {
-    name: 'Steel',
-    bg: '#0a0c10',
-    surface: '#10141c',
-    surfaceAlt: '#0d1018',
-    text: '#dce8f8',
-    textMuted: '#3a5070',
-    accent: '#60a5fa',
-    accentDim: '#1e3a6e',
-    border: '#1e2430',
-    borderSubtle: '#141820',
-    danger: '#ef4444',
-    success: '#22c55e',
-    isLight: false,
-    fontDisplay: "'Rajdhani', sans-serif",
-    fontBody: "'JetBrains Mono', monospace",
-  },
-  rose: {
-    name: 'Rose',
-    bg: '#100a0d',
-    surface: '#1a0d12',
-    surfaceAlt: '#160a0f',
-    text: '#f8d8e8',
-    textMuted: '#5a2a3a',
-    accent: '#f472b6',
-    accentDim: '#6d1a3a',
-    border: '#2e1220',
-    borderSubtle: '#1a0d14',
-    danger: '#ef4444',
-    success: '#22c55e',
-    isLight: false,
-    fontDisplay: "'Playfair Display', serif",
-    fontBody: "'Courier Prime', monospace",
-  },
-  light: {
-    name: 'Light',
-    bg: '#f4f1ec',
-    surface: '#fffefa',
-    surfaceAlt: '#edeae4',
-    text: '#1a1714',
-    textMuted: '#6b6560',
-    accent: '#5046e5',
-    accentDim: '#e8e6fc',
-    border: '#d4cfc7',
-    borderSubtle: '#e8e4dd',
-    danger: '#dc2626',
-    success: '#16a34a',
-    isLight: true,
-    fontDisplay: "'Bebas Neue', sans-serif",
-    fontBody: "'DM Mono', monospace",
-  },
+const THEME = {
+  bg: '#f4f1ec',
+  surface: '#fffefa',
+  surfaceAlt: '#edeae4',
+  text: '#1a1714',
+  textMuted: '#6b6560',
+  accent: '#5046e5',
+  accentDim: '#e8e6fc',
+  border: '#d4cfc7',
+  borderSubtle: '#e8e4dd',
+  danger: '#dc2626',
+  success: '#16a34a',
+  isLight: true,
+  fontDisplay: "'Bebas Neue', sans-serif",
+  fontBody: "'DM Mono', monospace",
 };
 
 export default function ReadingLog() {
-  const [theme, setTheme] = useState('light');
   const [books, setBooks] = useState([]);
   const [challenges, setChallenges] = useState([]);
   const [currentBook, setCurrentBook] = useState(null);
@@ -133,7 +44,7 @@ export default function ReadingLog() {
   const backupInputRef = useRef(null);
   const [restoreMsg, setRestoreMsg] = useState(null);
 
-  const t = THEMES[theme];
+  const t = THEME;
 
   // Get all unique tags from all books
   const allTags = [...new Set(books.flatMap(b => b.tags || []))].sort();
@@ -147,7 +58,6 @@ export default function ReadingLog() {
       const latest = autoBackups[0];
       setBooks(latest.books || []);
       setChallenges(latest.challenges || []);
-      setTheme(latest.theme || 'light');
       setMaxAutoBackups(latest.maxAutoBackups || 3);
     } else {
       const saved = localStorage.getItem('readingLog');
@@ -155,21 +65,20 @@ export default function ReadingLog() {
         const data = JSON.parse(saved);
         setBooks(data.books || []);
         setChallenges(data.challenges || []);
-        setTheme(data.theme || 'light');
         setMaxAutoBackups(data.maxAutoBackups || 3);
       }
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('readingLog', JSON.stringify({ books, challenges, theme, maxAutoBackups }));
-  }, [books, challenges, theme, maxAutoBackups]);
+    localStorage.setItem('readingLog', JSON.stringify({ books, challenges, maxAutoBackups }));
+  }, [books, challenges, maxAutoBackups]);
 
   useEffect(() => {
     const saveAutoBackup = () => {
       const autoRaw = localStorage.getItem('readingLog_autobackup');
       const existing = autoRaw ? JSON.parse(autoRaw) : [];
-      const newBackup = { savedAt: new Date().toISOString(), books, challenges, theme, maxAutoBackups };
+      const newBackup = { savedAt: new Date().toISOString(), books, challenges, maxAutoBackups };
       const updated = [newBackup, ...existing].slice(0, maxAutoBackups);
       setAutoBackupsList(updated);
       localStorage.setItem('readingLog_autobackup', JSON.stringify(updated));
@@ -181,7 +90,7 @@ export default function ReadingLog() {
       window.removeEventListener('beforeunload', saveAutoBackup);
       document.removeEventListener('visibilitychange', onHide);
     };
-  }, [books, challenges, theme, maxAutoBackups]);
+  }, [books, challenges, maxAutoBackups]);
 
   useEffect(() => {
     if (autoBackupsList.length > maxAutoBackups) {
@@ -507,7 +416,6 @@ export default function ReadingLog() {
     if (confirm('Replace all current data with this backup?')) {
       setBooks(backup.books || []);
       setChallenges(backup.challenges || []);
-      setTheme(backup.theme || 'light');
       setCurrentBook(null);
     }
   };
@@ -522,7 +430,6 @@ export default function ReadingLog() {
     const data = {
       version: 1,
       exportedAt: new Date().toISOString(),
-      theme,
       books,
       challenges,
     };
@@ -563,10 +470,6 @@ export default function ReadingLog() {
         
         setBooks(mergedBooks);
         setChallenges(mergedChallenges);
-        if (data.theme && THEMES[data.theme]) {
-          setTheme(data.theme);
-        }
-        
         const restoredItems = [];
         if (newBooks.length > 0) restoredItems.push(`${newBooks.length} book${newBooks.length !== 1 ? 's' : ''}`);
         if (newChallenges.length > 0) restoredItems.push(`${newChallenges.length} challenge${newChallenges.length !== 1 ? 's' : ''}`);
@@ -2642,19 +2545,12 @@ export default function ReadingLog() {
   const SettingsTab = () => (
     <div>
       <div style={styles.card}>
-        <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 16px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>Theme</h3>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          {Object.entries(THEMES).map(([key, value]) => (
-            <button
-              key={key}
-              style={{ ...styles.themeBtn(theme === key), background: value.accent }}
-              onClick={() => setTheme(key)}
-              title={value.name}
-            />
-          ))}
-        </div>
-        <p style={{ marginTop: '12px', color: t.textMuted, fontSize: '0.8rem', letterSpacing: '0.08em' }}>
-          Current: {THEMES[theme].name}
+        <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 12px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>About</h3>
+        <p style={{ color: t.textMuted, fontSize: '0.9rem', lineHeight: 1.6 }}>
+          Reading Log helps you track your reading journey. Log events, characters, and thoughts as you progress through each book.
+        </p>
+        <p style={{ color: t.textMuted, fontSize: '0.85rem', marginTop: '12px' }}>
+          Data is saved locally on your device.
         </p>
       </div>
 
@@ -2932,21 +2828,12 @@ export default function ReadingLog() {
         )}
       </div>
 
-      <div style={styles.card}>
-        <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 12px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>About</h3>
-        <p style={{ color: t.textMuted, fontSize: '0.9rem', lineHeight: 1.6 }}>
-          Reading Log helps you track your reading journey. Log events, characters, and thoughts as you progress through each book.
-        </p>
-        <p style={{ color: t.textMuted, fontSize: '0.85rem', marginTop: '12px' }}>
-          Data is saved locally on your device.
-        </p>
-      </div>
     </div>
   );
 
   return (
     <div style={styles.container}>
-      <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Exo+2:wght@500;600&family=Fira+Code:wght@400;500&family=Rajdhani:wght@500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
       <header style={styles.header}>
         <h1 style={styles.title}>
