@@ -2079,6 +2079,8 @@ export default function ReadingLog() {
       const otherEvents = books
         .filter(b => b.id !== book.id)
         .flatMap(b => b.entries.flatMap(e => e.majorEvents || []).filter(Boolean));
+      const allOtherCharNames = otherChars.map(c => c.name);
+      const allOtherCharDescs = otherChars.map(c => c.description);
 
       // Flashcard: Who is [name]?
       bookChars.forEach(char => {
@@ -2089,11 +2091,11 @@ export default function ReadingLog() {
         });
       });
 
-      // MCQ: Which character fits this description?
+      // MCQ: Which character fits this description? (description → name)
       bookChars.forEach(char => {
         const pool = [
           ...bookChars.filter(c => c.name !== char.name).map(c => c.name),
-          ...otherChars.map(c => c.name),
+          ...allOtherCharNames,
         ];
         const distractors = shuffle(pool).slice(0, 3);
         if (distractors.length === 3) {
@@ -2106,9 +2108,48 @@ export default function ReadingLog() {
         }
       });
 
+      // MCQ: Which description belongs to [name]? (name → description)
+      if (bookChars.length + otherChars.length >= 4) {
+        bookChars.forEach(char => {
+          const pool = [
+            ...bookChars.filter(c => c.name !== char.name).map(c => c.description),
+            ...allOtherCharDescs,
+          ];
+          const distractors = shuffle(pool).slice(0, 3);
+          if (distractors.length === 3) {
+            qs.push({
+              type: 'mcq',
+              prompt: `Which description belongs to ${char.name}?`,
+              options: shuffle([char.description, ...distractors]),
+              answer: char.description,
+            });
+          }
+        });
+      }
+
+      // True/False: Is [name] a character in [book]?
+      if (bookChars.length > 0 && allOtherCharNames.length > 0) {
+        shuffle(bookChars).forEach(char => {
+          qs.push({
+            type: 'truefalse',
+            prompt: `Is ${char.name} a character in "${book.title}"?`,
+            options: ['True', 'False'],
+            answer: 'True',
+          });
+        });
+        shuffle(allOtherCharNames).slice(0, bookChars.length + 2).forEach(name => {
+          qs.push({
+            type: 'truefalse',
+            prompt: `Is ${name} a character in "${book.title}"?`,
+            options: ['True', 'False'],
+            answer: 'False',
+          });
+        });
+      }
+
       // True/False: Did this happen in [book]?
       if (bookEvents.length > 0) {
-        shuffle(bookEvents).slice(0, 3).forEach(event => {
+        shuffle(bookEvents).forEach(event => {
           qs.push({
             type: 'truefalse',
             prompt: `Did this happen in "${book.title}"?\n\n"${event}"`,
@@ -2116,7 +2157,7 @@ export default function ReadingLog() {
             answer: 'True',
           });
         });
-        shuffle(otherEvents).slice(0, 3).forEach(event => {
+        shuffle(otherEvents).slice(0, bookEvents.length + 3).forEach(event => {
           qs.push({
             type: 'truefalse',
             prompt: `Did this happen in "${book.title}"?\n\n"${event}"`,
@@ -2128,7 +2169,7 @@ export default function ReadingLog() {
 
       // MCQ: Which of these was a major event in [book]?
       if (bookEvents.length > 0 && otherEvents.length >= 3) {
-        shuffle(bookEvents).slice(0, 3).forEach(event => {
+        shuffle(bookEvents).forEach(event => {
           const distractors = shuffle(otherEvents).slice(0, 3);
           qs.push({
             type: 'mcq',
@@ -2139,7 +2180,39 @@ export default function ReadingLog() {
         });
       }
 
-      return shuffle(qs).slice(0, 10);
+      // MCQ: Which event is NOT from [book]? (reverse)
+      if (bookEvents.length >= 3 && otherEvents.length > 0) {
+        shuffle(otherEvents).slice(0, 5).forEach(falseEvent => {
+          const decoys = shuffle(bookEvents).slice(0, 3);
+          qs.push({
+            type: 'mcq',
+            prompt: `Which of these did NOT happen in "${book.title}"?`,
+            options: shuffle([falseEvent, ...decoys]),
+            answer: falseEvent,
+          });
+        });
+      }
+
+      // Event ordering: Which happened first?
+      const entriesWithEvents = book.entries.filter(e => (e.majorEvents || []).some(Boolean));
+      if (entriesWithEvents.length >= 2) {
+        const sorted = [...entriesWithEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
+        for (let i = 0; i < sorted.length - 1 && qs.filter(q => q.subtype === 'ordering').length < 5; i++) {
+          const earlier = sorted[i].majorEvents.find(Boolean);
+          const later = sorted[i + 1].majorEvents.find(Boolean);
+          if (earlier && later && earlier !== later) {
+            qs.push({
+              type: 'mcq',
+              subtype: 'ordering',
+              prompt: `Which of these happened first in "${book.title}"?`,
+              options: shuffle([earlier, later]),
+              answer: earlier,
+            });
+          }
+        }
+      }
+
+      return shuffle(qs).slice(0, 35);
     };
 
     const [questions] = useState(() => generateQuestions());
