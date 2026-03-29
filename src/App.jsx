@@ -115,6 +115,8 @@ export default function ReadingLog() {
   const [showAddEntry, setShowAddEntry] = useState(false);
   const [showAddChallenge, setShowAddChallenge] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [maxAutoBackups, setMaxAutoBackups] = useState(3);
+  const [autoBackupsList, setAutoBackupsList] = useState([]);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [currentTagFilter, setCurrentTagFilter] = useState(null);
   const [historyTagFilter, setHistoryTagFilter] = useState(null);
@@ -137,18 +139,57 @@ export default function ReadingLog() {
   const allTags = [...new Set(books.flatMap(b => b.tags || []))].sort();
 
   useEffect(() => {
-    const saved = localStorage.getItem('readingLog');
-    if (saved) {
-      const data = JSON.parse(saved);
-      setBooks(data.books || []);
-      setChallenges(data.challenges || []);
-      setTheme(data.theme || 'light');
+    const autoRaw = localStorage.getItem('readingLog_autobackup');
+    const autoBackups = autoRaw ? JSON.parse(autoRaw) : [];
+    setAutoBackupsList(autoBackups);
+
+    if (autoBackups.length > 0) {
+      const latest = autoBackups[0];
+      setBooks(latest.books || []);
+      setChallenges(latest.challenges || []);
+      setTheme(latest.theme || 'light');
+      setMaxAutoBackups(latest.maxAutoBackups || 3);
+    } else {
+      const saved = localStorage.getItem('readingLog');
+      if (saved) {
+        const data = JSON.parse(saved);
+        setBooks(data.books || []);
+        setChallenges(data.challenges || []);
+        setTheme(data.theme || 'light');
+        setMaxAutoBackups(data.maxAutoBackups || 3);
+      }
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('readingLog', JSON.stringify({ books, challenges, theme }));
-  }, [books, challenges, theme]);
+    localStorage.setItem('readingLog', JSON.stringify({ books, challenges, theme, maxAutoBackups }));
+  }, [books, challenges, theme, maxAutoBackups]);
+
+  useEffect(() => {
+    const saveAutoBackup = () => {
+      const autoRaw = localStorage.getItem('readingLog_autobackup');
+      const existing = autoRaw ? JSON.parse(autoRaw) : [];
+      const newBackup = { savedAt: new Date().toISOString(), books, challenges, theme, maxAutoBackups };
+      const updated = [newBackup, ...existing].slice(0, maxAutoBackups);
+      setAutoBackupsList(updated);
+      localStorage.setItem('readingLog_autobackup', JSON.stringify(updated));
+    };
+    const onHide = () => { if (document.visibilityState === 'hidden') saveAutoBackup(); };
+    window.addEventListener('beforeunload', saveAutoBackup);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('beforeunload', saveAutoBackup);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, [books, challenges, theme, maxAutoBackups]);
+
+  useEffect(() => {
+    if (autoBackupsList.length > maxAutoBackups) {
+      const trimmed = autoBackupsList.slice(0, maxAutoBackups);
+      setAutoBackupsList(trimmed);
+      localStorage.setItem('readingLog_autobackup', JSON.stringify(trimmed));
+    }
+  }, [maxAutoBackups]);
 
   // Calculate reading streak
   const calculateStreak = () => {
@@ -460,6 +501,21 @@ export default function ReadingLog() {
 
   const deleteChallenge = (challengeId) => {
     setChallenges(challenges.filter(c => c.id !== challengeId));
+  };
+
+  const restoreAutoBackup = (backup) => {
+    if (confirm('Replace all current data with this backup?')) {
+      setBooks(backup.books || []);
+      setChallenges(backup.challenges || []);
+      setTheme(backup.theme || 'light');
+      setCurrentBook(null);
+    }
+  };
+
+  const deleteAutoBackup = (index) => {
+    const updated = autoBackupsList.filter((_, i) => i !== index);
+    setAutoBackupsList(updated);
+    localStorage.setItem('readingLog_autobackup', JSON.stringify(updated));
   };
 
   const saveBackup = () => {
@@ -2826,6 +2882,54 @@ export default function ReadingLog() {
         <p style={{ fontSize: '0.75rem', color: t.textMuted, marginTop: '12px', lineHeight: 1.5 }}>
           Downloads an <span style={{ color: t.text }}>.rlbak</span> file. Restore merges with existing data — no duplicates.
         </p>
+      </div>
+
+      <div style={styles.card}>
+        <h3 style={{ fontFamily: t.fontDisplay, fontSize: '0.85rem', margin: '0 0 16px 0', letterSpacing: '0.14em', textTransform: 'uppercase', color: t.textMuted }}>Auto-Backups</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <label style={{ ...styles.label, margin: 0 }}>Backups to keep</label>
+          <input
+            type="number"
+            min="1"
+            max="10"
+            value={maxAutoBackups}
+            onChange={e => setMaxAutoBackups(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+            style={{ ...styles.input, width: '70px', textAlign: 'center' }}
+          />
+        </div>
+        <p style={{ fontSize: '0.75rem', color: t.textMuted, marginBottom: '16px', lineHeight: 1.5 }}>
+          A snapshot is saved automatically when you close or background the app.
+        </p>
+        {autoBackupsList.length === 0 ? (
+          <div style={{ fontSize: '0.8rem', color: t.textMuted, textAlign: 'center', padding: '12px 0' }}>
+            No auto-backups yet — one will be saved when you next close the app.
+          </div>
+        ) : (
+          autoBackupsList.map((backup, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: t.surfaceAlt, borderRadius: '6px', marginBottom: '8px', border: `1px solid ${t.borderSubtle}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.8rem', color: t.text, fontWeight: 500 }}>
+                  {i === 0 ? 'Latest — ' : ''}{new Date(backup.savedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: t.textMuted, marginTop: '2px' }}>
+                  {(backup.books || []).length} book{(backup.books || []).length !== 1 ? 's' : ''}, {(backup.challenges || []).length} challenge{(backup.challenges || []).length !== 1 ? 's' : ''}
+                </div>
+              </div>
+              <button
+                onClick={() => restoreAutoBackup(backup)}
+                style={{ ...styles.btn('secondary'), padding: '6px 10px', fontSize: '0.7rem' }}
+              >
+                Restore
+              </button>
+              <button
+                onClick={() => deleteAutoBackup(i)}
+                style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', padding: '4px', fontSize: '1rem', lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+          ))
+        )}
       </div>
 
       <div style={styles.card}>
