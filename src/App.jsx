@@ -1,5 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+const fetchAndCacheImage = async (url) => {
+  if (!url || url.startsWith('data:')) return url;
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return url;
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(url);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url;
+  }
+};
+
 const THEME = {
   bg: '#f4f1ec',
   surface: '#fffefa',
@@ -42,6 +59,7 @@ export default function ReadingLog() {
   
   const fileInputRef = useRef(null);
   const backupInputRef = useRef(null);
+  const coversMigrated = useRef(false);
   const [restoreMsg, setRestoreMsg] = useState(null);
 
   const t = THEME;
@@ -99,6 +117,23 @@ export default function ReadingLog() {
       localStorage.setItem('readingLog_autobackup', JSON.stringify(trimmed));
     }
   }, [maxAutoBackups]);
+
+  // Migrate existing remote cover URLs to cached data URLs on first load
+  useEffect(() => {
+    if (coversMigrated.current || books.length === 0) return;
+    if (!books.some(b => b.cover && !b.cover.startsWith('data:'))) {
+      coversMigrated.current = true;
+      return;
+    }
+    coversMigrated.current = true;
+    Promise.all(
+      books.map(b =>
+        b.cover && !b.cover.startsWith('data:')
+          ? fetchAndCacheImage(b.cover).then(cached => ({ ...b, cover: cached }))
+          : Promise.resolve(b)
+      )
+    ).then(updated => setBooks(updated));
+  }, [books]);
 
   // Calculate reading streak
   const calculateStreak = () => {
@@ -328,8 +363,16 @@ export default function ReadingLog() {
       startDate: new Date().toISOString(),
       finishDate: book.status === 'finished' ? new Date().toISOString() : null,
     };
-    setBooks([newBook, ...books]);
+    setBooks(prev => [newBook, ...prev]);
     setShowAddBook(false);
+    // Cache the cover in the background if it's a remote URL
+    if (newBook.cover && !newBook.cover.startsWith('data:')) {
+      fetchAndCacheImage(newBook.cover).then(cached => {
+        if (cached !== newBook.cover) {
+          setBooks(prev => prev.map(b => b.id === newBook.id ? { ...b, cover: cached } : b));
+        }
+      });
+    }
   };
 
   const updateBook = (bookId, updates) => {
