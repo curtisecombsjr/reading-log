@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 const fetchAndCacheImage = async (url) => {
   if (!url || url.startsWith('data:')) return url;
@@ -61,6 +62,8 @@ export default function ReadingLog() {
   const backupInputRef = useRef(null);
   const coversMigrated = useRef(false);
   const [restoreMsg, setRestoreMsg] = useState(null);
+  const [debugLog, setDebugLog] = useState([]);
+  const dbg = (msg) => setDebugLog(prev => [...prev.slice(-9), msg]);
 
   const t = THEME;
 
@@ -89,7 +92,17 @@ export default function ReadingLog() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('readingLog', JSON.stringify({ books, challenges, maxAutoBackups }));
+    try {
+      localStorage.setItem('readingLog', JSON.stringify({ books, challenges, maxAutoBackups }));
+    } catch (e) {
+      // QuotaExceededError — strip covers and retry
+      try {
+        const stripped = books.map(b => ({ ...b, cover: b.cover?.startsWith('data:') ? '' : b.cover }));
+        localStorage.setItem('readingLog', JSON.stringify({ books: stripped, challenges, maxAutoBackups }));
+      } catch (e2) {
+        console.error('localStorage save failed even after stripping covers:', e2);
+      }
+    }
   }, [books, challenges, maxAutoBackups]);
 
   useEffect(() => {
@@ -469,68 +482,134 @@ export default function ReadingLog() {
     localStorage.setItem('readingLog_autobackup', JSON.stringify(updated));
   };
 
-  const saveBackup = () => {
-    const data = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      books,
-      challenges,
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const buildBackupData = () => {
+    const data = { version: 1, exportedAt: new Date().toISOString(), books, challenges };
+    const json = JSON.stringify(data, null, 2);
+    const filename = `reading-log-backup-${new Date().toISOString().split('T')[0]}.rlbak`;
+    return { json, filename };
+  };
+
+  const shareBackup = async () => {
+    const { json, filename } = buildBackupData();
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+        const writeResult = await Filesystem.writeFile({
+          path: filename,
+          data: json,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+        await Share.share({ title: 'Reading Log Backup', url: writeResult.uri, dialogTitle: 'Share backup' });
+      } catch (e) {
+        if (!e.message?.toLowerCase().includes('cancel')) {
+          setRestoreMsg({ type: 'error', text: 'Failed to share backup' });
+          setTimeout(() => setRestoreMsg(null), 4000);
+        }
+      }
+      return;
+    }
+    // Desktop: same as save
+    const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reading-log-backup-${new Date().toISOString().split('T')[0]}.rlbak`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
+  const saveBackup = async () => {
+    const { json, filename } = buildBackupData();
+
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
+        await Filesystem.writeFile({
+          path: filename,
+          data: json,
+          directory: Directory.External,
+          encoding: Encoding.UTF8,
+        });
+        setRestoreMsg({ type: 'success', text: `Saved: ${filename} — find it in Files › Android › data › com.readinglog.app › files` });
+        setTimeout(() => setRestoreMsg(null), 6000);
+      } catch (e) {
+        console.error('Save backup failed:', e);
+        setRestoreMsg({ type: 'error', text: 'Failed to save backup file' });
+        setTimeout(() => setRestoreMsg(null), 4000);
+      }
+      return;
+    }
+
+    // Desktop fallback
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const processRestoreText = async (text) => {
+    try {
+      const data = JSON.parse(text);
+      if (!data.books || !Array.isArray(data.books)) {
+        setRestoreMsg({ type: 'error', text: 'Invalid backup file format' });
+        return;
+      }
+      const existingBookIds = new Set(books.map(b => b.id));
+      const newBooks = data.books.filter(b => !existingBookIds.has(b.id));
+      const mergedBooks = [...books, ...newBooks];
+      const existingChallengeIds = new Set(challenges.map(c => c.id));
+      const newChallenges = (data.challenges || []).filter(c => !existingChallengeIds.has(c.id));
+      const mergedChallenges = [...challenges, ...newChallenges];
+      setBooks(mergedBooks);
+      setChallenges(mergedChallenges);
+      const restoredItems = [];
+      if (newBooks.length > 0) restoredItems.push(`${newBooks.length} book${newBooks.length !== 1 ? 's' : ''}`);
+      if (newChallenges.length > 0) restoredItems.push(`${newChallenges.length} challenge${newChallenges.length !== 1 ? 's' : ''}`);
+      setRestoreMsg({
+        type: 'success',
+        text: restoredItems.length > 0
+          ? `Restored ${restoredItems.join(' and ')}`
+          : 'No new data to restore (all already exist)'
+      });
+      setTimeout(() => setRestoreMsg(null), 4000);
+    } catch (err) {
+      setRestoreMsg({ type: 'error', text: 'Failed to read backup file' });
+    }
+  };
+
+  const handleRestoreClick = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { FilePicker } = await import('@capawesome/capacitor-file-picker');
+        const result = await FilePicker.pickFiles({ readData: true, multiple: false });
+        if (result.files.length > 0) {
+          const text = atob(result.files[0].data);
+          await processRestoreText(text);
+        }
+      } catch (e) {
+        if (!e.message?.toLowerCase().includes('cancel')) {
+          setRestoreMsg({ type: 'error', text: 'Could not open file picker' });
+        }
+      }
+      return;
+    }
+    // Desktop fallback
+    backupInputRef.current?.click();
+  };
+
   const restoreBackup = (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        
-        if (!data.books || !Array.isArray(data.books)) {
-          setRestoreMsg({ type: 'error', text: 'Invalid backup file format' });
-          return;
-        }
-        
-        // Merge books - avoid duplicates by ID
-        const existingBookIds = new Set(books.map(b => b.id));
-        const newBooks = data.books.filter(b => !existingBookIds.has(b.id));
-        const mergedBooks = [...books, ...newBooks];
-        
-        // Merge challenges - avoid duplicates by ID
-        const existingChallengeIds = new Set(challenges.map(c => c.id));
-        const newChallenges = (data.challenges || []).filter(c => !existingChallengeIds.has(c.id));
-        const mergedChallenges = [...challenges, ...newChallenges];
-        
-        setBooks(mergedBooks);
-        setChallenges(mergedChallenges);
-        const restoredItems = [];
-        if (newBooks.length > 0) restoredItems.push(`${newBooks.length} book${newBooks.length !== 1 ? 's' : ''}`);
-        if (newChallenges.length > 0) restoredItems.push(`${newChallenges.length} challenge${newChallenges.length !== 1 ? 's' : ''}`);
-        
-        setRestoreMsg({ 
-          type: 'success', 
-          text: restoredItems.length > 0 
-            ? `Restored ${restoredItems.join(' and ')}` 
-            : 'No new data to restore (all already exist)'
-        });
-        
-        setTimeout(() => setRestoreMsg(null), 4000);
-      } catch (err) {
-        setRestoreMsg({ type: 'error', text: 'Failed to parse backup file' });
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+    if (e.target.value) e.target.value = '';
+    if (file) file.text().then(processRestoreText);
   };
 
   const currentBooks = books.filter(b => {
@@ -2825,31 +2904,50 @@ export default function ReadingLog() {
             ↓ Save Backup
           </button>
           <button
-            onClick={() => backupInputRef.current?.click()}
-            style={{ 
-              flex: 1, 
-              padding: '11px', 
-              borderRadius: '6px', 
-              cursor: 'pointer', 
+            onClick={handleRestoreClick}
+            style={{
+              flex: 1,
+              padding: '11px',
+              borderRadius: '6px',
+              cursor: 'pointer',
               fontFamily: t.fontBody,
-              background: 'transparent', 
-              border: `1px solid ${t.border}`, 
-              color: t.accent, 
-              fontSize: '0.8rem', 
-              letterSpacing: '0.08em', 
+              background: 'transparent',
+              border: `1px solid ${t.border}`,
+              color: t.accent,
+              fontSize: '0.8rem',
+              letterSpacing: '0.08em',
               textTransform: 'uppercase',
             }}
           >
             ↑ Restore
           </button>
-          <input 
-            ref={backupInputRef} 
-            type="file" 
-            accept=".rlbak,.json" 
-            onChange={restoreBackup} 
-            style={{ display: 'none' }} 
+          <input
+            ref={backupInputRef}
+            type="file"
+            accept="*/*"
+            onChange={restoreBackup}
+            style={{ display: 'none' }}
           />
         </div>
+        <button
+          onClick={shareBackup}
+          style={{
+            width: '100%',
+            marginTop: '8px',
+            padding: '11px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontFamily: t.fontBody,
+            background: 'transparent',
+            border: `1px solid ${t.border}`,
+            color: t.accent,
+            fontSize: '0.8rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+          }}
+        >
+          ↗ Share Backup
+        </button>
         {restoreMsg && (
           <div style={{ 
             fontSize: '0.8rem', 
@@ -2912,6 +3010,18 @@ export default function ReadingLog() {
           ))
         )}
       </div>
+
+      {debugLog.length > 0 && (
+        <div style={{ ...styles.card, background: '#111', border: '1px solid #333' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.7rem', color: '#aaa', fontFamily: t.fontBody, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Debug Log</span>
+            <button onClick={() => setDebugLog([])} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '0.75rem' }}>clear</button>
+          </div>
+          {debugLog.map((line, i) => (
+            <div key={i} style={{ fontSize: '0.72rem', color: '#0f0', fontFamily: 'monospace', marginBottom: '2px', wordBreak: 'break-all' }}>{line}</div>
+          ))}
+        </div>
+      )}
 
     </div>
   );
