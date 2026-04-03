@@ -955,6 +955,43 @@ export default function ReadingLog() {
       }
     };
 
+    // MangaDex search (manga/comics, no API key required)
+    const searchMangaDex = async (query) => {
+      try {
+        const response = await fetch(
+          `https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=6&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`
+        );
+        if (!response.ok) return [];
+        const data = await response.json();
+        return (data.data || [])
+          .filter(item => item.attributes?.title)
+          .slice(0, 6)
+          .map(item => {
+            const attrs = item.attributes;
+            const title = attrs.title?.en || Object.values(attrs.title || {})[0] || 'Unknown Title';
+            const altTitles = attrs.altTitles || [];
+            const engAlt = altTitles.find(t => t.en)?.en;
+            const coverRel = item.relationships?.find(r => r.type === 'cover_art');
+            const coverFile = coverRel?.attributes?.fileName;
+            const cover = coverFile ? `https://uploads.mangadex.org/covers/${item.id}/${coverFile}.256.jpg` : '';
+            const year = attrs.year ? String(attrs.year) : '';
+            const authorRel = item.relationships?.find(r => r.type === 'author');
+            const author = authorRel?.attributes?.name || 'Unknown Author';
+            return {
+              id: `mdx-${item.id}`,
+              title: engAlt && engAlt !== title ? `${title} (${engAlt})` : title,
+              author,
+              cover,
+              year,
+              source: 'MangaDex',
+            };
+          });
+      } catch (e) {
+        console.error('MangaDex search failed:', e);
+        return [];
+      }
+    };
+
     const searchBooks = async (query) => {
       if (!query.trim() || query.length < 2) {
         setSearchResults([]);
@@ -985,8 +1022,10 @@ export default function ReadingLog() {
           results = await searchOpenLibrary(query);
         } else if (searchSource === 'google') {
           results = await searchGoogleBooks(query);
+        } else if (searchSource === 'mangadex') {
+          results = await searchMangaDex(query);
         }
-        
+
         setSearchResults(results);
         if (results.length === 0) {
           setSearchError(false); // No results isn't an error
@@ -1034,6 +1073,8 @@ export default function ReadingLog() {
               results = await searchOpenLibrary(searchQuery);
             } else if (newSource === 'google') {
               results = await searchGoogleBooks(searchQuery);
+            } else if (newSource === 'mangadex') {
+              results = await searchMangaDex(searchQuery);
             }
             setSearchResults(results);
             setIsSearching(false);
@@ -1109,6 +1150,7 @@ export default function ReadingLog() {
                     { key: 'all', label: 'All Sources' },
                     { key: 'google', label: 'Google Books' },
                     { key: 'openlib', label: 'Open Library' },
+                    { key: 'mangadex', label: 'MangaDex' },
                   ].map(src => (
                     <button
                       key={src.key}
@@ -2876,8 +2918,6 @@ export default function ReadingLog() {
 
   return (
     <div style={styles.container}>
-      <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-
       <header style={styles.header}>
         <h1 style={styles.title}>
           <BookIcon />
