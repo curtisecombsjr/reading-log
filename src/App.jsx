@@ -636,65 +636,118 @@ export default function ReadingLog() {
 
   // Styles
   const styles = {
-    container: {
-      minHeight: '100vh',
+    // ── Tablet master-detail shell ──
+    app: {
+      height: '100vh',
+      display: 'flex',
       background: t.bg,
       color: t.text,
       fontFamily: t.fontBody,
-      maxWidth: '480px',
-      margin: '0 auto',
-      position: 'relative',
-      paddingBottom: '80px',
+      overflow: 'hidden',
     },
-    header: {
+    rail: {
+      width: '150px',
+      flexShrink: 0,
       background: t.surface,
-      borderBottom: `1px solid ${t.border}`,
-      padding: '16px 20px',
-      position: 'sticky',
-      top: 0,
-      zIndex: 100,
+      borderRight: `1px solid ${t.border}`,
+      display: 'flex',
+      flexDirection: 'column',
+      padding: '14px 0',
+      gap: '2px',
+      overflowY: 'auto',
     },
-    title: {
-      fontFamily: t.fontDisplay,
-      fontSize: '1.5rem',
-      fontWeight: 700,
-      margin: 0,
+    railBrand: {
       display: 'flex',
       alignItems: 'center',
-      gap: '10px',
-      letterSpacing: '0.08em',
+      gap: '8px',
+      padding: '6px 18px 18px',
+      fontFamily: t.fontDisplay,
+      fontSize: '1.05rem',
+      fontWeight: 700,
+      letterSpacing: '0.05em',
       textTransform: 'uppercase',
+      lineHeight: 1.1,
     },
-    nav: {
+    railBtn: (active) => ({
       display: 'flex',
-      position: 'fixed',
-      bottom: 0,
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: '100%',
-      maxWidth: '480px',
-      background: t.surface,
-      borderTop: `1px solid ${t.border}`,
-      zIndex: 100,
-    },
-    navBtn: (active) => ({
-      flex: 1,
-      padding: '14px 8px',
-      background: 'none',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '13px 16px',
+      background: active ? t.accentDim : 'transparent',
       border: 'none',
+      borderLeft: active ? `3px solid ${t.accent}` : '3px solid transparent',
       color: active ? t.accent : t.textMuted,
       fontFamily: t.fontBody,
-      fontSize: '0.7rem',
-      fontWeight: 500,
+      fontSize: '0.78rem',
+      fontWeight: active ? 600 : 500,
       cursor: 'pointer',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      transition: 'all 0.15s',
+      width: '100%',
+      textAlign: 'left',
+    }),
+    workarea: {
+      flex: 1,
+      display: 'flex',
+      minWidth: 0,
+      height: '100%',
+    },
+    listPane: {
+      width: '380px',
+      flexShrink: 0,
+      borderRight: `1px solid ${t.border}`,
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: 0,
+      background: t.bg,
+    },
+    detailPane: {
+      flex: 1,
+      minWidth: 0,
+      overflowY: 'auto',
+      padding: '24px 30px',
+    },
+    fullPane: {
+      flex: 1,
+      minWidth: 0,
+      overflowY: 'auto',
+      padding: '26px 32px',
+    },
+    paneHead: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '10px',
+      padding: '18px 18px 14px',
+      borderBottom: `1px solid ${t.border}`,
+      flexShrink: 0,
+    },
+    paneTitle: {
+      fontFamily: t.fontDisplay,
+      fontSize: '1.35rem',
+      fontWeight: 700,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      margin: 0,
+    },
+    paneScroll: {
+      overflowY: 'auto',
+      padding: '14px 16px',
+      flex: 1,
+      minHeight: 0,
+    },
+    detailEmpty: {
+      height: '100%',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: '4px',
-      transition: 'color 0.2s',
-      letterSpacing: '0.1em',
-      textTransform: 'uppercase',
-    }),
+      justifyContent: 'center',
+      color: t.textMuted,
+      textAlign: 'center',
+      gap: '14px',
+      opacity: 0.65,
+    },
     content: {
       padding: '16px',
     },
@@ -808,20 +861,20 @@ export default function ReadingLog() {
       inset: 0,
       background: 'rgba(0,0,0,0.7)',
       display: 'flex',
-      alignItems: 'flex-end',
+      alignItems: 'center',
       justifyContent: 'center',
       zIndex: 200,
+      padding: '24px',
     },
     modalContent: {
       background: t.surface,
-      borderRadius: '10px 10px 0 0',
-      padding: '24px 20px',
+      borderRadius: '12px',
+      padding: '26px 24px',
       width: '100%',
-      maxWidth: '480px',
-      maxHeight: '85vh',
+      maxWidth: '560px',
+      maxHeight: '88vh',
       overflowY: 'auto',
       border: `1px solid ${t.border}`,
-      borderBottom: 'none',
     },
     modalTitle: {
       fontFamily: t.fontDisplay,
@@ -3026,52 +3079,65 @@ export default function ReadingLog() {
     </div>
   );
 
+  const isBookTab = tab === 'current' || tab === 'history';
+
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <h1 style={styles.title}>
+    <div style={styles.app}>
+      <nav style={styles.rail}>
+        <div style={styles.railBrand}>
           <BookIcon />
           Reading Log
-        </h1>
-      </header>
-
-      <main style={styles.content}>
-        {currentBook ? (
-          <BookDetail />
-        ) : (
-          <>
-            {tab === 'current' && <CurrentTab />}
-            {tab === 'history' && <HistoryTab />}
-            {tab === 'goals' && <GoalsTab />}
-            {tab === 'settings' && <SettingsTab />}
-          </>
-        )}
-      </main>
-
-      {!currentBook && tab === 'current' && (
-        <button style={styles.fab} onClick={() => setShowAddBook(true)}>
-          <PlusIcon />
+        </div>
+        <button style={styles.railBtn(tab === 'current')} onClick={() => { setTab('current'); setCurrentBook(null); }}>
+          <BookIcon /> Reading
         </button>
-      )}
-
-      <nav style={styles.nav}>
-        <button style={styles.navBtn(tab === 'current')} onClick={() => { setTab('current'); setCurrentBook(null); }}>
-          <BookIcon />
-          Reading
+        <button style={styles.railBtn(tab === 'history')} onClick={() => { setTab('history'); setCurrentBook(null); }}>
+          <HistoryIcon /> History
         </button>
-        <button style={styles.navBtn(tab === 'history')} onClick={() => { setTab('history'); setCurrentBook(null); }}>
-          <HistoryIcon />
-          History
+        <button style={styles.railBtn(tab === 'goals')} onClick={() => { setTab('goals'); setCurrentBook(null); }}>
+          <GoalsIcon /> Goals
         </button>
-        <button style={styles.navBtn(tab === 'goals')} onClick={() => { setTab('goals'); setCurrentBook(null); }}>
-          <GoalsIcon />
-          Goals
-        </button>
-        <button style={styles.navBtn(tab === 'settings')} onClick={() => { setTab('settings'); setCurrentBook(null); }}>
-          <SettingsIcon />
-          Settings
+        <button style={styles.railBtn(tab === 'settings')} onClick={() => { setTab('settings'); setCurrentBook(null); }}>
+          <SettingsIcon /> Settings
         </button>
       </nav>
+
+      <div style={styles.workarea}>
+        {isBookTab ? (
+          <>
+            <section style={styles.listPane}>
+              <div style={styles.paneHead}>
+                <h2 style={styles.paneTitle}>{tab === 'current' ? 'Reading' : 'History'}</h2>
+                {tab === 'current' && (
+                  <button style={{ ...styles.btn('primary'), padding: '9px 14px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => setShowAddBook(true)}>
+                    <PlusIcon /> Add Book
+                  </button>
+                )}
+              </div>
+              <div style={styles.paneScroll}>
+                {tab === 'current' ? <CurrentTab /> : <HistoryTab />}
+              </div>
+            </section>
+            <section style={styles.detailPane}>
+              {currentBook ? (
+                <BookDetail />
+              ) : (
+                <div style={styles.detailEmpty}>
+                  <div style={{ fontSize: '3rem', opacity: 0.5 }}>📖</div>
+                  <p style={{ fontSize: '0.85rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    Select a book to see its log
+                  </p>
+                </div>
+              )}
+            </section>
+          </>
+        ) : (
+          <section style={styles.fullPane}>
+            {tab === 'goals' && <GoalsTab />}
+            {tab === 'settings' && <SettingsTab />}
+          </section>
+        )}
+      </div>
 
       {showAddBook && <AddBookModal />}
       {showAddEntry && <AddEntryModal />}
